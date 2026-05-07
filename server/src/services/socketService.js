@@ -209,10 +209,6 @@ const initializeSocketServer = (io) => {
     // Chat message — save to DB and broadcast
     socket.on("gd:chat", async ({ roomId, userId, name, message }) => {
       if (!roomId || !message?.trim()) return;
-      if (message.trim().length < 10) {
-        socket.emit("gd:error", { message: "Message must be at least 10 characters." });
-        return;
-      }
       try {
         const PROFANITY = ["damn","hell","crap","shit","fuck","ass","bitch"];
         let clean = message.trim();

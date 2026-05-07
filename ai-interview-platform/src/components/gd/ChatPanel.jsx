@@ -14,7 +14,6 @@ const ChatPanel = ({ messages, onSend, disabled }) => {
   const handleSend = () => {
     const text = input.trim();
     if (!text || disabled) return;
-    if (text.length < 10) { setSpamWarn("Message must be at least 10 characters."); return; }
     const now = Date.now();
     if (now - lastSent < SPAM_INTERVAL) { setSpamWarn("Please wait before sending another message."); return; }
     setSpamWarn("");
@@ -57,7 +56,7 @@ const ChatPanel = ({ messages, onSend, disabled }) => {
           value={input}
           onChange={(e) => { setInput(e.target.value); setSpamWarn(""); }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder={disabled ? "Waiting for discussion..." : "Type a message (min 10 chars)..."}
+          placeholder={disabled ? "Waiting for discussion..." : "Type a message..."}
           disabled={disabled}
           style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-soft)", color: "var(--text-primary)", fontSize: "12px", outline: "none", opacity: disabled ? 0.5 : 1 }}
         />

@@ -312,8 +312,9 @@ const GDRoom = () => {
 
     socket.on("gd:user-joined", ({ userId: uid, name: n }) => {
       setParticipants((prev) => prev.find((p) => p.userId === uid) ? prev : [...prev, { userId: uid, name: n, online: true }]);
-      // If live, initiate offer to new peer
-      if (status === "live") createPeer(uid, true);
+      // Create peer connection immediately so host and participants can see each other
+      // as soon as discussion starts (both in waiting and live states)
+      if (uid !== userId) createPeer(uid, true);
     });
 
     socket.on("gd:user-left", ({ userId: uid }) => {
@@ -324,7 +325,7 @@ const GDRoom = () => {
     socket.on("gd:started", ({ durationSec, endTime }) => {
       setStatus("live");
       setTimeLeft(Math.max(0, Math.floor((new Date(endTime) - Date.now()) / 1000)));
-      // Create offers to all current participants
+      // Create offers to ALL current participants (including host for non-host users)
       setParticipants((prev) => {
         prev.forEach((p) => { if (p.userId !== userId) createPeer(p.userId, true); });
         return prev;
@@ -433,7 +434,6 @@ const GDRoom = () => {
   const sendMessage = () => {
     const text = input.trim();
     if (!text || status !== "live") return;
-    if (text.length < 10) { setSpamWarn("Message must be at least 10 characters."); return; }
     const now = Date.now();
     if (now - lastSentRef.current < SPAM_MS) { setSpamWarn("Please wait before sending another message."); return; }
     setSpamWarn("");
@@ -640,7 +640,7 @@ const GDRoom = () => {
             <div style={{ padding: "10px 14px", borderTop: "1px solid var(--border-soft)", display: "flex", gap: "8px", flexShrink: 0 }}>
               <input value={input} onChange={(e) => { setInput(e.target.value); setSpamWarn(""); }}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder={status === "live" ? "Type your message... (min 10 chars)" : "Waiting for discussion to start..."}
+                placeholder={status === "live" ? "Type your message..." : "Waiting for discussion to start..."}
                 disabled={status !== "live"}
                 style={{ flex: 1, padding: "9px 13px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-soft)", color: "var(--text-primary)", fontSize: "13px", outline: "none", opacity: status !== "live" ? 0.5 : 1 }} />
               <button onClick={sendMessage} disabled={!input.trim() || status !== "live"} className="btn-teal"
