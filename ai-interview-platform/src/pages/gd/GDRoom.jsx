@@ -67,7 +67,7 @@ const VideoTile = ({ stream, name, isMuted, isCameraOff, isSelf, isSpeaking }) =
       transition: "border-color 0.2s, box-shadow 0.2s",
     }}>
       <video ref={videoRef} autoPlay playsInline muted={isSelf}
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: isCameraOff ? "none" : "block" }} />
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: isCameraOff ? "none" : "block", transform: isSelf ? "scaleX(-1)" : "none" }} />
       {isCameraOff && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
           <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "linear-gradient(135deg,#0d9488,#14b8a6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 800, color: "white" }}>

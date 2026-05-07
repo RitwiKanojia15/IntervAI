@@ -20,13 +20,19 @@ const VideoTile = ({ stream, name, isMuted, isCameraOff, isSelf, isSpeaking }) =
       transition: "border-color 0.2s",
       boxShadow: isSpeaking ? "0 0 0 2px rgba(20,184,166,0.4)" : "none",
     }}>
-      {/* Video element */}
+      {/* Video element — mirror only for self (local preview) */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={isSelf}
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: isCameraOff ? "none" : "block" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: isCameraOff ? "none" : "block",
+          transform: isSelf ? "scaleX(-1)" : "none",
+        }}
       />
 
       {/* Avatar when camera off */}
