@@ -89,7 +89,6 @@ const QuestionBank = () => {
                   <Icon size={17} style={{ color: text }} />
                 </div>
                 <p style={{ fontFamily: "Syne,sans-serif", fontWeight: 700, fontSize: "14px", color: "white", marginBottom: "3px" }}>{label}</p>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>{count} questions</p>
               </button>
             ))}
           </div>
