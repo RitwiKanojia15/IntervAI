@@ -177,6 +177,13 @@ const initializeSocketServer = (io) => {
       io.to(getGdRoomName(roomId)).emit("gd:force-media", { targetUserId, micOn, cameraOn });
     });
 
+    // Host kicks a participant
+    socket.on("gd:kick", ({ roomId, targetUserId }) => {
+      if (!roomId || !targetUserId) return;
+      // Notify the kicked user and everyone else
+      io.to(getGdRoomName(roomId)).emit("gd:kicked", { targetUserId });
+    });
+
     // Chat message — save to DB and broadcast
     socket.on("gd:chat", async ({ roomId, userId, name, message }) => {
       if (!roomId || !message?.trim()) return;

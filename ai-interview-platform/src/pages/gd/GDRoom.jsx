@@ -343,6 +343,19 @@ const GDRoom = () => {
     });
     socket.on("gd:error", ({ message: msg }) => setError(msg));
 
+    // Kicked by host
+    socket.on("gd:kicked", ({ targetUserId: kicked }) => {
+      if (kicked === userId) {
+        localStreamRef.current?.getTracks().forEach((t) => t.stop());
+        Object.values(peersRef.current).forEach((pc) => pc.close());
+        socket.disconnect();
+        navigate("/gd?kicked=1");
+      } else {
+        closePeer(kicked);
+        setParticipants((prev) => prev.filter((p) => p.userId !== kicked));
+      }
+    });
+
     return () => { socket.emit("gd:leave", { roomId, userId }); socket.disconnect(); };
   }, [roomId, userId]);
 
@@ -408,6 +421,14 @@ const GDRoom = () => {
       socketRef.current?.emit("gd:ended", { roomId });
       navigate(`/gd/results/${roomId}`);
     } catch (err) { setError(err.response?.data?.message || "Failed to end."); }
+  };
+
+  // Host kicks a participant out of the room
+  const kickParticipant = (targetUserId) => {
+    if (!window.confirm("Kick this participant?")) return;
+    socketRef.current?.emit("gd:kick", { roomId, targetUserId });
+    closePeer(targetUserId);
+    setParticipants((prev) => prev.filter((p) => p.userId !== targetUserId));
   };
 
   // Host forces a participant's mic or camera on/off
@@ -671,6 +692,11 @@ const GDRoom = () => {
                               borderColor: pState.cameraOn ? "var(--border-soft)" : "rgba(248,113,113,0.4)",
                               color: pState.cameraOn ? "var(--text-muted)" : "#f87171" }}>
                             {pState.cameraOn ? <><Video size={10} /> Cam off</> : <><VideoOff size={10} /> Cam on</>}
+                          </button>
+                          <button onClick={() => kickParticipant(p.userId)}
+                            title="Kick participant"
+                            style={{ padding: "4px 7px", borderRadius: "6px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid rgba(248,113,113,0.5)", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", background: "rgba(248,113,113,0.15)", color: "#f87171" }}>
+                            ✕ Kick
                           </button>
                         </div>
                       )}

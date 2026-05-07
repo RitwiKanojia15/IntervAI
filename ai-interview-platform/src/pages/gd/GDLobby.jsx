@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Video, Plus, LogIn, ArrowLeft, Loader2, Users } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import PageWrapper from "../../components/PageWrapper";
@@ -21,6 +21,8 @@ const TOPICS = [
 const GDLobby = () => {
   const { user } = useAuth();
   const navigate  = useNavigate();
+  const [searchParams] = useSearchParams();
+  const wasKicked = searchParams.get("kicked") === "1";
   const [tab, setTab] = useState("create");
 
   const [title, setTitle]           = useState("");
@@ -99,6 +101,12 @@ const GDLobby = () => {
           </div>
 
           {error && <div className="banner-error" style={{ marginBottom: "16px" }}><span>!</span> {error}</div>}
+
+          {wasKicked && (
+            <div className="banner-error" style={{ marginBottom: "16px", background: "rgba(248,113,113,0.12)", borderColor: "rgba(248,113,113,0.4)" }}>
+              <span>!</span> You were removed from the discussion by the host.
+            </div>
+          )}
 
           {tab === "create" && (
             <div className="dash-card" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: "18px" }}>
