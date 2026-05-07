@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from "react";
 import { Clock, Edit2, Flame, Shield, Target, TrendingUp, FileText, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";

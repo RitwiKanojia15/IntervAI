@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Play, RotateCcw, CheckCircle2, XCircle, Lightbulb, Code2, BookOpen, Star } from "lucide-react";

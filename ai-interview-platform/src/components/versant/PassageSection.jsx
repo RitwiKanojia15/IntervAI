@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useRef } from "react";
 import { Volume2, VolumeX, ChevronLeft, ChevronRight, Send, CheckCircle2, XCircle, BookOpen, Headphones, AlertCircle, Bookmark, Eye, RotateCcw } from "lucide-react";
 

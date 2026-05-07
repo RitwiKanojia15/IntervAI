@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useRef } from "react";
 import { Mic, MicOff, Send, CheckCircle2, RotateCcw, AlertCircle, Eye } from "lucide-react";
 

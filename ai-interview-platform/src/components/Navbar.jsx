@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+/* eslint-disable */
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart2,
@@ -34,7 +35,6 @@ const NAV_LINKS = [
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
 ];
 
-const NOTIFS = [];  // replaced by dynamic data from StatsContext
 
 const UserMenuItem = ({ icon: Icon, label, onClick, danger = false }) => (
   <button

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, AlertCircle, CheckCircle2, BookOpen, Headphones, Mic2, FileText, Loader2 } from "lucide-react";

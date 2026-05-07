@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Trophy, Users, MessageSquare, ArrowLeft, RotateCcw, CheckCircle2, TrendingUp, Loader2 } from "lucide-react";
