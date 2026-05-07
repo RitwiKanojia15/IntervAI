@@ -1,106 +1,121 @@
+/* eslint-disable */
+import { useCallback, useEffect, useRef } from "react";
+
 /**
  * useAntiCheat
  *
- * Handles all anti-cheat detection for the Live Test module:
- *  - Fullscreen enforcement (enter on start, detect exit)
- *  - Tab-switch detection (visibilitychange)
- *  - Window blur / minimize detection (blur event)
+ * Detects tab-switching, window blur, and fullscreen exits during a live test.
+ * Calls `onViolation(reason)` whenever a violation is detected.
  *
- * Returns helpers to enter fullscreen and a teardown function.
- * Calls `onViolation(reason)` on every detected event.
- * Debounces repeated triggers to 5 s per violation.
+ * Props:
+ *   enabled     – boolean  – activate/deactivate the hook
+ *   onViolation – (reason: string) => void
+ *
+ * Returns:
+ *   enterFullscreen – () => Promise<void>
+ *   exitFullscreen  – () => void
  */
+const useAntiCheat = ({ enabled = false, onViolation }) => {
+  // Prevent double-firing on the same event cycle
+  const cooldownRef = useRef(false);
+  const mountedRef  = useRef(false);
 
-import { useCallback, useEffect, useRef } from "react";
-
-const VIOLATION_DEBOUNCE_MS = 5000;
-
-const useAntiCheat = ({ enabled, onViolation }) => {
-  const lastViolationRef = useRef(0);
-  const enabledRef = useRef(enabled);
-
-  // Keep ref in sync so event listeners always see the latest value
-  useEffect(() => {
-    enabledRef.current = enabled;
-  }, [enabled]);
-
-  /** Request fullscreen on the document element */
-  const enterFullscreen = useCallback(() => {
-    const el = document.documentElement;
-    if (!document.fullscreenElement) {
-      (
-        el.requestFullscreen?.() ||
-        el.webkitRequestFullscreen?.() ||
-        el.mozRequestFullScreen?.() ||
-        el.msRequestFullscreen?.()
-      );
-    }
-  }, []);
-
-  /** Exit fullscreen (used on cleanup / disqualification) */
-  const exitFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      (
-        document.exitFullscreen?.() ||
-        document.webkitExitFullscreen?.() ||
-        document.mozCancelFullScreen?.() ||
-        document.msExitFullscreen?.()
-      );
-    }
-  }, []);
-
-  const fireViolation = useCallback(
+  const triggerViolation = useCallback(
     (reason) => {
-      if (!enabledRef.current) return;
-      const now = Date.now();
-      if (now - lastViolationRef.current < VIOLATION_DEBOUNCE_MS) return;
-      lastViolationRef.current = now;
-      onViolation(reason);
+      if (!enabled || cooldownRef.current) return;
+      cooldownRef.current = true;
+      onViolation?.(reason);
+      // 2-second cooldown so rapid events don't stack up
+      setTimeout(() => { cooldownRef.current = false; }, 2000);
     },
-    [onViolation]
+    [enabled, onViolation]
   );
 
-  useEffect(() => {
-    if (!enabled) return undefined;
+  // ── Fullscreen helpers ──────────────────────────────────────────────────────
+  const enterFullscreen = useCallback(async () => {
+    if (!document.fullscreenEnabled) return;
+    if (document.fullscreenElement) return; // already fullscreen
+    try {
+      await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+    } catch {
+      // User denied or browser blocked — treat as a violation
+      triggerViolation("fullscreen-exit");
+    }
+  }, [triggerViolation]);
 
-    // ── Tab switch ────────────────────────────────────────────────────────────
+  const exitFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // ── Event listeners ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!enabled) return;
+
+    mountedRef.current = true;
+
+    // --- visibilitychange: tab hidden / minimised ---
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        fireViolation("tab-switch");
+        triggerViolation("tab-switch");
       }
     };
 
-    // ── Window blur (minimize / alt-tab / focus lost) ─────────────────────────
-    const handleWindowBlur = () => {
-      // Only fire if the document is still visible (blur without tab switch)
-      if (document.visibilityState !== "hidden") {
-        fireViolation("window-blur");
+    // --- window blur: focus moved to another window / app ---
+    const handleBlur = () => {
+      // Only fire if the page is still visible (avoids double-firing with visibilitychange)
+      if (document.visibilityState === "visible") {
+        triggerViolation("tab-switch");
       }
     };
 
-    // ── Fullscreen exit ───────────────────────────────────────────────────────
+    // --- fullscreenchange: user pressed Esc or otherwise exited fullscreen ---
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        fireViolation("fullscreen-exit");
+      if (!document.fullscreenElement && mountedRef.current) {
+        triggerViolation("fullscreen-exit");
+        // Attempt to re-enter fullscreen after a short delay
+        setTimeout(() => {
+          if (mountedRef.current && !document.fullscreenElement) {
+            enterFullscreen();
+          }
+        }, 800);
+      }
+    };
+
+    // --- Prevent right-click context menu ---
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+    };
+
+    // --- Block common copy/paste/devtools shortcuts ---
+    const handleKeyDown = (e) => {
+      const blocked =
+        (e.ctrlKey && ["c", "v", "u", "s", "a"].includes(e.key.toLowerCase())) ||
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase())) ||
+        (e.altKey && e.key === "Tab");
+
+      if (blocked) {
+        e.preventDefault();
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("blur", handleBlur);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
-    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      mountedRef.current = false;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("blur", handleBlur);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [enabled, fireViolation]);
+  }, [enabled, enterFullscreen, triggerViolation]);
 
   return { enterFullscreen, exitFullscreen };
 };

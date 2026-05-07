@@ -94,6 +94,11 @@ const liveTestAttemptSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    fullscreenExits: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     status: {
       type: String,
       enum: ["joined", "submitted", "expired", "disqualified"],

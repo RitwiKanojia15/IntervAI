@@ -1,179 +1,205 @@
+/* eslint-disable */
+import React, { useEffect } from "react";
+import { AlertTriangle, ShieldAlert, XCircle } from "lucide-react";
+
 /**
  * ViolationWarningModal
+ * Shown each time the anti-cheat system records a violation.
  *
- * Shown on every anti-cheat violation (tab switch, window blur, fullscreen exit).
- * Displays current warning count and remaining strikes.
- * Auto-dismisses after 5 seconds or on manual close.
+ * Props:
+ *   warnings     – number  – current warning count (1-based)
+ *   maxWarnings  – number  – total allowed warnings before disqualification
+ *   reason       – string  – "tab-switch" | "fullscreen-exit" | etc.
+ *   onClose      – () => void – called when the user dismisses the modal
  */
+const ViolationWarningModal = ({ warnings, maxWarnings, reason, onClose }) => {
+  const isDisqualified = warnings >= maxWarnings;
+  const remaining = maxWarnings - warnings;
 
-import React, { useEffect } from "react";
-import { AlertTriangle, X } from "lucide-react";
-
-const REASON_LABELS = {
-  "tab-switch": "Tab switch detected",
-  "window-blur": "Window focus lost",
-  "fullscreen-exit": "Fullscreen exited",
-};
-
-const AUTO_DISMISS_MS = 5000;
-
-const ViolationWarningModal = ({
-  warnings,
-  maxWarnings,
-  reason,
-  onClose,
-}) => {
-  const isLastWarning = warnings >= maxWarnings - 1;
-  const label = REASON_LABELS[reason] || "Violation detected";
-
+  // Auto-dismiss after 6 s (unless disqualified — that one stays until redirect)
   useEffect(() => {
-    const timer = setTimeout(onClose, AUTO_DISMISS_MS);
+    if (isDisqualified) return;
+    const timer = setTimeout(onClose, 6000);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [isDisqualified, onClose]);
+
+  const reasonLabel =
+    reason === "fullscreen-exit"
+      ? "Exiting fullscreen"
+      : reason === "tab-switch"
+      ? "Tab / window switching"
+      : "Suspicious activity";
+
+  const accentColor = isDisqualified ? "#ef4444" : warnings >= maxWarnings - 1 ? "#f97316" : "#fbbf24";
+  const bgColor = isDisqualified
+    ? "rgba(239,68,68,0.08)"
+    : warnings >= maxWarnings - 1
+    ? "rgba(249,115,22,0.08)"
+    : "rgba(251,191,36,0.08)";
+  const borderColor = isDisqualified
+    ? "rgba(239,68,68,0.3)"
+    : warnings >= maxWarnings - 1
+    ? "rgba(249,115,22,0.3)"
+    : "rgba(251,191,36,0.3)";
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 9998,
+        zIndex: 10000,
+        background: "rgba(0,0,0,0.75)",
+        backdropFilter: "blur(4px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: "24px",
-        background: "rgba(0,0,0,0.65)",
-        backdropFilter: "blur(3px)",
       }}
     >
       <div
         style={{
-          background: isLastWarning ? "rgba(127,29,29,0.95)" : "rgba(17,24,39,0.97)",
-          border: `1px solid ${isLastWarning ? "rgba(239,68,68,0.6)" : "rgba(251,191,36,0.45)"}`,
+          background: "var(--card-bg, #111827)",
+          border: `1px solid ${borderColor}`,
           borderRadius: "14px",
-          padding: "28px",
+          padding: "28px 28px 24px",
           maxWidth: "420px",
           width: "100%",
-          boxShadow: `0 20px 60px ${isLastWarning ? "rgba(239,68,68,0.25)" : "rgba(0,0,0,0.5)"}`,
-          position: "relative",
+          boxShadow: `0 0 0 1px ${borderColor}, 0 20px 48px rgba(0,0,0,0.55)`,
+          animation: "fadeInScale 0.2s ease",
         }}
       >
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: "14px",
-            right: "14px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "rgba(255,255,255,0.4)",
-            padding: "4px",
-            display: "flex",
-            alignItems: "center",
-          }}
-          aria-label="Dismiss warning"
-        >
-          <X size={16} />
-        </button>
-
         {/* Icon + title */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
           <div
             style={{
               width: "40px",
               height: "40px",
               borderRadius: "10px",
-              background: isLastWarning ? "rgba(239,68,68,0.2)" : "rgba(251,191,36,0.15)",
+              background: bgColor,
+              border: `1px solid ${borderColor}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
             }}
           >
-            <AlertTriangle
-              size={20}
-              style={{ color: isLastWarning ? "#ef4444" : "#fbbf24" }}
-            />
+            {isDisqualified ? (
+              <XCircle size={20} style={{ color: accentColor }} />
+            ) : (
+              <AlertTriangle size={20} style={{ color: accentColor }} />
+            )}
           </div>
           <div>
-            <p
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: isLastWarning ? "#fca5a5" : "#fde68a",
-                marginBottom: "3px",
-              }}
-            >
-              {label}
-            </p>
             <h3
               style={{
-                fontSize: "18px",
+                fontSize: "16px",
                 fontWeight: 700,
-                color: "white",
+                color: accentColor,
+                margin: 0,
+                lineHeight: 1.3,
               }}
             >
-              Warning {warnings}/{maxWarnings}
+              {isDisqualified
+                ? "Disqualified"
+                : `Warning ${warnings} of ${maxWarnings}`}
             </h3>
+            <p style={{ fontSize: "11px", color: "var(--text-dim, #6b7280)", margin: 0 }}>
+              {reasonLabel} detected
+            </p>
           </div>
         </div>
 
-        {/* Strike indicators */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+        {/* Message */}
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--text-muted, #9ca3af)",
+            lineHeight: 1.6,
+            marginBottom: "16px",
+          }}
+        >
+          {isDisqualified ? (
+            <>
+              You have been <strong style={{ color: accentColor }}>disqualified</strong> due to multiple
+              violations. Your test has been automatically submitted. You cannot rejoin this session.
+            </>
+          ) : remaining === 1 ? (
+            <>
+              <strong style={{ color: accentColor }}>One more violation</strong> will automatically
+              terminate your test and mark you as disqualified. Please stay in fullscreen and do not
+              switch tabs.
+            </>
+          ) : (
+            <>
+              Tab switching and exiting fullscreen are not allowed during a proctored test. You have{" "}
+              <strong style={{ color: accentColor }}>
+                {remaining} warning{remaining !== 1 ? "s" : ""} remaining
+              </strong>{" "}
+              before automatic disqualification.
+            </>
+          )}
+        </p>
+
+        {/* Warning pip bar */}
+        <div style={{ display: "flex", gap: "5px", marginBottom: "18px" }}>
           {Array.from({ length: maxWarnings }).map((_, i) => (
             <div
-              // eslint-disable-next-line react/no-array-index-key
               key={i}
               style={{
                 flex: 1,
-                height: "6px",
+                height: "5px",
                 borderRadius: "3px",
-                background:
-                  i < warnings
-                    ? isLastWarning
-                      ? "#ef4444"
-                      : "#fbbf24"
-                    : "rgba(255,255,255,0.1)",
+                background: i < warnings ? accentColor : "rgba(255,255,255,0.1)",
                 transition: "background 0.3s",
               }}
             />
           ))}
         </div>
 
-        {/* Message */}
-        <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", lineHeight: 1.6 }}>
-          {isLastWarning ? (
-            <>
-              <strong style={{ color: "#fca5a5" }}>This is your final warning.</strong> One more
-              violation will automatically submit your test and disqualify you.
-            </>
-          ) : (
-            <>
-              Stay on the test tab and keep the window in fullscreen. You have{" "}
-              <strong style={{ color: "#fde68a" }}>
-                {maxWarnings - warnings} strike{maxWarnings - warnings !== 1 ? "s" : ""} remaining
-              </strong>{" "}
-              before disqualification.
-            </>
-          )}
-        </p>
+        {/* Dismiss / re-enter fullscreen button */}
+        {!isDisqualified && (
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              background: bgColor,
+              border: `1px solid ${borderColor}`,
+              color: accentColor,
+              transition: "opacity 0.2s",
+            }}
+          >
+            I understand — Return to Test
+          </button>
+        )}
 
         {/* Auto-dismiss hint */}
-        <p
-          style={{
-            marginTop: "14px",
-            fontSize: "11px",
-            color: "rgba(255,255,255,0.3)",
-            textAlign: "right",
-          }}
-        >
-          Dismisses automatically in 5 s
-        </p>
+        {!isDisqualified && (
+          <p
+            style={{
+              fontSize: "11px",
+              color: "var(--text-dim, #6b7280)",
+              textAlign: "center",
+              marginTop: "10px",
+              marginBottom: 0,
+            }}
+          >
+            This dialog will close automatically in 6 seconds.
+          </p>
+        )}
       </div>
+
+      <style>{`
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.94); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 };

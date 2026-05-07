@@ -193,6 +193,7 @@ const serializeParticipant = (attemptDoc) => ({
   sessionToken: attemptDoc.sessionToken,
   warnings: attemptDoc.warnings,
   tabSwitchCount: attemptDoc.tabSwitchCount,
+  fullscreenExits: attemptDoc.fullscreenExits,
   status: attemptDoc.status,
 });
 
@@ -629,7 +630,8 @@ const recordLiveTestWarning = async ({
   }
 
   attemptDoc.warnings += 1;
-  attemptDoc.tabSwitchCount += reason === "tab-switch" ? 1 : 0;
+  attemptDoc.tabSwitchCount    += reason === "tab-switch"      ? 1 : 0;
+  attemptDoc.fullscreenExits   += reason === "fullscreen-exit" ? 1 : 0;
   attemptDoc.lastSeenAt = new Date();
 
   const warningLimit = liveTestDoc.settings?.maxWarnings ?? 3;
