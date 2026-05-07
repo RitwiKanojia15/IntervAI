@@ -5,6 +5,9 @@ import { AlertTriangle, ArrowLeft, Play, ShieldAlert, Users } from "lucide-react
 import Navbar from "../../components/Navbar";
 import PageWrapper from "../../components/PageWrapper";
 import TestQuestionPanel from "../../components/test/TestQuestionPanel";
+import TermsModal from "../../components/live/TermsModal";
+import ViolationWarningModal from "../../components/live/ViolationWarningModal";
+import useAntiCheat from "../../hooks/useAntiCheat";
 import useLiveTestSocket from "../../hooks/useLiveTestSocket";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -102,11 +105,13 @@ const LiveTestSession = () => {
   });
   const [remainingTime, setRemainingTime] = useState(null);
   const [starting, setStarting] = useState(false);
+  // Anti-cheat UI state
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [violationModal, setViolationModal] = useState(null); // { warnings, maxWarnings, reason }
 
   const dirtyAnswersRef = useRef({});
   const currentIndexRef = useRef(storedSession?.currentQuestionIndex || 0);
   const serverOffsetRef = useRef(0);
-  const lastVisibilityWarningRef = useRef(0);
   const submitLockRef = useRef(false);
 
   const participantKey = useMemo(
@@ -372,52 +377,62 @@ const LiveTestSession = () => {
     return () => window.clearInterval(waitingPollTimer);
   }, [isWaitingRoom, refreshSession, state.session]);
 
-  useEffect(() => {
-    if (!state.session?.antiCheat?.enabled) {
-      return undefined;
-    }
+  // ── Anti-cheat: violation handler ────────────────────────────────────────────
+  const antiCheatEnabled = Boolean(state.session?.antiCheat?.enabled);
+  const maxWarnings = state.session?.antiCheat?.maxWarnings ?? 3;
 
-    const sendVisibilityWarning = () => {
-      if (document.visibilityState !== "hidden") {
+  const handleViolation = useCallback(
+    (reason) => {
+      if (!state.session?.testId || !state.session?.participant?.sessionToken || !participantKey) {
         return;
       }
-
-      const now = Date.now();
-
-      if (now - lastVisibilityWarningRef.current < 5000) {
-        return;
-      }
-
-      lastVisibilityWarningRef.current = now;
       recordLiveTestWarning(state.session.testId, {
         participantKey,
         sessionToken: state.session.participant.sessionToken,
-        reason: "tab-switch",
+        reason,
       })
         .then((response) => {
-          dispatch({
-            type: "set-warning",
-            payload: `Warning ${response.data.warnings}/${state.session.antiCheat.maxWarnings}: stay on the test tab.`,
-          });
+          const { warnings, locked } = response.data;
+          // Show the warning modal
+          setViolationModal({ warnings, maxWarnings, reason });
           dispatch({
             type: "update-participant",
             payload: {
-              warnings: response.data.warnings,
+              warnings,
               tabSwitchCount: response.data.tabSwitchCount,
-              status: response.data.locked ? "disqualified" : state.session.participant.status,
+              status: locked ? "disqualified" : state.session.participant.status,
             },
           });
-
-          if (response.data.locked) {
+          if (locked) {
             handleSubmit();
           }
         })
         .catch(() => {});
-    };
+    },
+    [handleSubmit, maxWarnings, participantKey, state.session]
+  );
 
-    document.addEventListener("visibilitychange", sendVisibilityWarning);
-    return () => document.removeEventListener("visibilitychange", sendVisibilityWarning);
-  }, [handleSubmit, participantKey, state.session]);
+  // Only activate anti-cheat once the test is live and terms are accepted
+  const antiCheatActive = antiCheatEnabled && termsAccepted && !isWaitingRoom && Boolean(state.session);
+
+  const { enterFullscreen, exitFullscreen } = useAntiCheat({
+    enabled: antiCheatActive,
+    onViolation: handleViolation,
+  });
+
+  // Enter fullscreen when terms are accepted and test is live
+  useEffect(() => {
+    if (antiCheatActive) {
+      enterFullscreen();
+    }
+  }, [antiCheatActive, enterFullscreen]);
+
+  // Exit fullscreen on unmount / disqualification
+  useEffect(() => {
+    return () => {
+      exitFullscreen();
+    };
+  }, [exitFullscreen]);
 
   if (!state.session) {
     return (
@@ -546,6 +561,24 @@ const LiveTestSession = () => {
 
   return (
     <div className="app-bg min-h-screen">
+      {/* ── Terms & Conditions modal (shown once before test starts) ── */}
+      {antiCheatEnabled && !termsAccepted && (
+        <TermsModal
+          testTitle={state.session.title}
+          onAccept={() => setTermsAccepted(true)}
+        />
+      )}
+
+      {/* ── Per-violation warning popup ── */}
+      {violationModal && (
+        <ViolationWarningModal
+          warnings={violationModal.warnings}
+          maxWarnings={violationModal.maxWarnings}
+          reason={violationModal.reason}
+          onClose={() => setViolationModal(null)}
+        />
+      )}
+
       <Navbar />
       <div style={{ maxWidth: "1120px", margin: "0 auto", padding: "28px 24px 40px" }}>
         <PageWrapper>
@@ -594,13 +627,6 @@ const LiveTestSession = () => {
                 <div className="banner-error mt-4">
                   <AlertTriangle size={14} />
                   <span>{state.error}</span>
-                </div>
-              ) : null}
-
-              {state.warningMessage ? (
-                <div className="banner-error mt-4" style={{ borderColor: "rgba(251,191,36,0.35)", color: "#fde68a" }}>
-                  <ShieldAlert size={14} />
-                  <span>{state.warningMessage}</span>
                 </div>
               ) : null}
 
@@ -706,10 +732,31 @@ const LiveTestSession = () => {
                   style={{ width: "100%", padding: "10px", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", opacity: (state.submitting || state.syncing) ? 0.6 : 1 }}>
                   {state.submitting ? "Submitting..." : state.syncing ? "Syncing..." : answeredCount === state.session.questions.length ? "Submit Test" : `${state.session.questions.length - answeredCount} Remaining`}
                 </button>
-                {state.session.antiCheat?.enabled && (
-                  <p style={{ fontSize: "11px", color: "var(--text-dim)", marginTop: "10px", textAlign: "center" }}>
-                    Warnings: {state.session.participant.warnings}/{state.session.antiCheat.maxWarnings}
-                  </p>
+                {/* ── Anti-cheat warning counter ── */}
+                {antiCheatEnabled && (
+                  <div style={{ marginTop: "12px", padding: "8px 10px", borderRadius: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "5px" }}>
+                        <ShieldAlert size={11} /> Warnings
+                      </span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, fontFamily: "JetBrains Mono,monospace", color: (state.session.participant.warnings ?? 0) > 0 ? "#fbbf24" : "var(--text-dim)" }}>
+                        {state.session.participant.warnings ?? 0}/{maxWarnings}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      {Array.from({ length: maxWarnings }).map((_, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            flex: 1,
+                            height: "4px",
+                            borderRadius: "2px",
+                            background: i < (state.session.participant.warnings ?? 0) ? "#fbbf24" : "rgba(255,255,255,0.1)",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

@@ -22,7 +22,12 @@ const {
   serializeQuestion,
   shuffleWithSeed,
 } = require("../utils/liveTestUtils");
-const { emitLiveTestLeaderboardUpdate, emitTestStarted, emitLiveTestUpdate } = require("./socketService");
+const {
+  emitLiveTestLeaderboardUpdate,
+  emitLiveTestViolation,
+  emitTestStarted,
+  emitLiveTestUpdate,
+} = require("./socketService");
 
 const DEFAULT_LEADERBOARD_LIMIT = 20;
 const HEARTBEAT_WRITE_WINDOW_MS = 5000;
@@ -652,6 +657,16 @@ const recordLiveTestWarning = async ({
     });
     await emitLeaderboardIfNeeded(testId);
   }
+
+  // Broadcast violation to all room members so the host panel updates in real-time
+  emitLiveTestViolation(testId.toString(), {
+    participantKey: attemptDoc.participantKey,
+    participantName: attemptDoc.participantName,
+    warnings: attemptDoc.warnings,
+    maxWarnings: liveTestDoc.settings?.maxWarnings ?? 3,
+    reason,
+    locked: shouldLockSession,
+  });
 
   return {
     warnings: attemptDoc.warnings,

@@ -320,12 +320,30 @@ const emitTestStarted = (testId, payload) => {
   if (!ioInstance || !testId) return;
   ioInstance.to(getLiveTestRoomName(testId)).emit("testStarted", payload);
 };
+
+/**
+ * Broadcast a participant violation event to everyone in the test room.
+ * The host/admin listens for this to update the participant status panel in real-time.
+ *
+ * payload: { participantKey, participantName, warnings, maxWarnings, reason, locked }
+ */
+const emitLiveTestViolation = (testId, payload) => {
+  if (!ioInstance || !testId) return;
+  ioInstance.to(getLiveTestRoomName(testId)).emit("live-test:violation", payload);
+};
+
 const emitGtgUpdate = (roomId, event, payload) => {
   if (!ioInstance || !roomId) return;
   ioInstance.to(getGtgRoomName(roomId)).emit(event, payload);
 };
 
 module.exports = {
-  emitLiveTestLeaderboardUpdate, emitTestStarted, emitLiveTestUpdate,
-  emitGtgUpdate, getLiveTestRoomName, getGtgRoomName, initializeSocketServer,
+  emitLiveTestLeaderboardUpdate,
+  emitLiveTestViolation,
+  emitTestStarted,
+  emitLiveTestUpdate,
+  emitGtgUpdate,
+  getLiveTestRoomName,
+  getGtgRoomName,
+  initializeSocketServer,
 };
