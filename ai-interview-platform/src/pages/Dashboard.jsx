@@ -19,8 +19,6 @@ const NAV_ITEMS = [
   { key: "G", label: "Group Discussion",   icon: Users,        path: "/gd" },
   { key: "V", label: "Versant Assessment", icon: Star,         path: "/versant" },
   { key: "S", label: "Upload Resume",      icon: Upload,       path: "/upload-resume" },
-  { key: "A", label: "APTI-HUB Elite",     icon: Trophy,       path: "/question-bank" },
-  { key: "R", label: "Gaming Round",       icon: Gamepad2,     path: "/leaderboard" },
   { key: "H", label: "Learning Hub",       icon: BookOpen,     path: "/question-bank" },
   { key: "O", label: "Logout",             icon: LogOut,       path: null, danger: true },
 ];
@@ -250,11 +248,10 @@ const Dashboard = () => {
               </div>
 
               {/* Quick links row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 fade-up delay-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 fade-up delay-4">
                 {[
-                  { icon: Brain, label: "Question Bank", desc: "349 curated questions", path: "/question-bank", color: "rgba(99,102,241,0.12)", text: "#a5b4fc" },
-                  { icon: Trophy, label: "Leaderboard", desc: "You're rank #8 globally", path: "/leaderboard", color: "rgba(245,158,11,0.12)", text: "#fbbf24" },
-                  { icon: Target, label: "My Analytics", desc: "78% avg score this week", path: "/analytics", color: "rgba(20,184,166,0.12)", text: "var(--teal-400)" },
+                  { icon: Brain, label: "Question Bank", desc: "Curated practice questions", path: "/question-bank", color: "rgba(99,102,241,0.12)", text: "#a5b4fc" },
+                  { icon: Target, label: "My Analytics", desc: `${avgScore}% avg score`, path: "/analytics", color: "rgba(20,184,166,0.12)", text: "var(--teal-400)" },
                 ].map(({ icon: Icon, label, desc, path, color, text }) => (
                   <button key={label} onClick={() => navigate(path)}
                     style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px", cursor: "pointer", textAlign: "left", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "12px" }}

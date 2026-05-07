@@ -17,6 +17,10 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: "stun:stun.stunprotocol.org:3478" },
   ],
 };
 
@@ -26,9 +30,32 @@ const fmtTime = (s) =>
 // ── VideoTile ─────────────────────────────────────────────────────────────────
 const VideoTile = ({ stream, name, isMuted, isCameraOff, isSelf, isSpeaking }) => {
   const videoRef = useRef(null);
+
   useEffect(() => {
-    if (videoRef.current && stream) videoRef.current.srcObject = stream;
+    if (!videoRef.current) return;
+    if (stream) {
+      videoRef.current.srcObject = stream;
+      // Force play in case autoplay was blocked
+      videoRef.current.play().catch(() => {});
+    } else {
+      videoRef.current.srcObject = null;
+    }
   }, [stream]);
+
+  // Also re-attach if tracks change (handles addTrack after initial connection)
+  useEffect(() => {
+    if (!videoRef.current || !stream) return;
+    const onAddTrack = () => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+    };
+    stream.addEventListener("addtrack", onAddTrack);
+    return () => stream.removeEventListener("addtrack", onAddTrack);
+  }, [stream]);
+
   const initials = (name || "?").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
   return (
     <div style={{
@@ -204,12 +231,22 @@ const GDRoom = () => {
       localStreamRef.current.getTracks().forEach((t) => pc.addTrack(t, localStreamRef.current));
     }
 
-    // Remote stream
-    const remoteStream = new MediaStream();
+    // Remote stream — use the stream directly from the track event
     pc.ontrack = (e) => {
-      e.streams[0]?.getTracks().forEach((t) => remoteStream.addTrack(t));
-      setRemoteStreams((prev) => ({ ...prev, [targetUid]: remoteStream }));
-      startSpeakingDetection(targetUid, remoteStream);
+      // Use the stream from the event directly (most reliable approach)
+      const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+      setRemoteStreams((prev) => {
+        // If we already have a stream for this peer, add the track to it
+        if (prev[targetUid]) {
+          const existing = prev[targetUid];
+          if (!existing.getTracks().find((t) => t.id === e.track.id)) {
+            existing.addTrack(e.track);
+          }
+          return { ...prev, [targetUid]: existing };
+        }
+        return { ...prev, [targetUid]: stream };
+      });
+      startSpeakingDetection(targetUid, stream);
     };
 
     // ICE

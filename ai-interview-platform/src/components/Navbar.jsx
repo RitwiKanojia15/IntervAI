@@ -32,7 +32,6 @@ const NAV_LINKS = [
   { icon: FileText, label: "Resume", path: "/upload-resume" },
   { icon: BarChart2, label: "Analytics", path: "/analytics" },
   { icon: BookOpen, label: "Question Bank", path: "/question-bank" },
-  { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
 ];
 
 

@@ -150,18 +150,40 @@ const initializeSocketServer = (io) => {
     // WebRTC signaling — relay offer/answer/ICE between peers
     socket.on("gd:offer", ({ roomId, to, from, offer }) => {
       if (!roomId) return;
-      // Find target socket and send directly
-      io.to(getGdRoomName(roomId)).emit("gd:offer", { from, offer });
+      // Send only to the target peer, not broadcast to everyone
+      const targetSocket = [...io.sockets.sockets.values()].find(
+        (s) => s.data.gdRoomId === roomId && s.data.gdUserId === to
+      );
+      if (targetSocket) {
+        targetSocket.emit("gd:offer", { from, offer });
+      } else {
+        // Fallback: broadcast to room (peer will filter by 'from')
+        socket.to(getGdRoomName(roomId)).emit("gd:offer", { from, offer });
+      }
     });
 
     socket.on("gd:answer", ({ roomId, to, from, answer }) => {
       if (!roomId) return;
-      io.to(getGdRoomName(roomId)).emit("gd:answer", { from, answer });
+      const targetSocket = [...io.sockets.sockets.values()].find(
+        (s) => s.data.gdRoomId === roomId && s.data.gdUserId === to
+      );
+      if (targetSocket) {
+        targetSocket.emit("gd:answer", { from, answer });
+      } else {
+        socket.to(getGdRoomName(roomId)).emit("gd:answer", { from, answer });
+      }
     });
 
     socket.on("gd:ice-candidate", ({ roomId, to, from, candidate }) => {
       if (!roomId) return;
-      io.to(getGdRoomName(roomId)).emit("gd:ice-candidate", { from, candidate });
+      const targetSocket = [...io.sockets.sockets.values()].find(
+        (s) => s.data.gdRoomId === roomId && s.data.gdUserId === to
+      );
+      if (targetSocket) {
+        targetSocket.emit("gd:ice-candidate", { from, candidate });
+      } else {
+        socket.to(getGdRoomName(roomId)).emit("gd:ice-candidate", { from, candidate });
+      }
     });
 
     // Media state (mic/camera toggle)

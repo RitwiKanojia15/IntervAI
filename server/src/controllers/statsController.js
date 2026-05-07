@@ -20,6 +20,18 @@ const getMyStats = asyncHandler(async (req, res) => {
   const user = await softAuth(req);
   if (!user) return res.status(200).json({ stats: null });
 
+  // Record today's login for streak tracking
+  const todayStr = new Date().toISOString().split("T")[0];
+  if (!user.lastLoginDate || user.lastLoginDate !== todayStr) {
+    await User.findByIdAndUpdate(user._id, {
+      lastLoginDate: todayStr,
+      $addToSet: { activityDates: todayStr },
+    });
+    // Refresh user to get updated activityDates
+    const updatedUser = await User.findById(user._id).select("-password");
+    Object.assign(user, updatedUser.toObject());
+  }
+
   const sessions = await Interview.find({ userId: user._id, status: "completed" })
     .sort({ completedAt: -1 })
     .lean();
@@ -52,14 +64,18 @@ const getMyStats = asyncHandler(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get unique activity days (interviews + any activity)
-  const activityDays = new Set(
-    sessions.map((s) => {
-      const d = new Date(s.completedAt);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })
-  );
+  // Combine interview days + login days for streak
+  const interviewDays = sessions.map((s) => {
+    const d = new Date(s.completedAt);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  });
+  const loginDays = (user.activityDates || []).map((dateStr) => {
+    const d = new Date(dateStr);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  });
+  const activityDays = new Set([...interviewDays, ...loginDays]);
 
   let currentStreak = 0;
   let bestStreak = 0;

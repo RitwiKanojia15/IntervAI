@@ -27,6 +27,8 @@ const userSchema = new mongoose.Schema(
     resume: { type: resumeAnalysisSchema, default: null },
     oauthProvider: { type: String, enum: ["google", "microsoft", null], default: null },
     oauthId: { type: String, default: null },
+    lastLoginDate: { type: String, default: null },       // "YYYY-MM-DD"
+    activityDates: { type: [String], default: [] },       // ["YYYY-MM-DD", ...]
   },
   { timestamps: true }
 );
